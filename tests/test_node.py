@@ -33,7 +33,7 @@ def test_add_transition():
     assert node1.validate("a").size == 1
 
     assert node1.validate("b").valid is False
-    assert node1.validate("b").size is None
+    assert node1.validate("b").size == -1
 
 
 def test_epsilon_transition():
@@ -76,13 +76,13 @@ def test_add_transition_multiple_steps():
     assert nodeA.validate("as").size == 2
 
     assert not nodeA.validate("a").valid
-    assert nodeA.validate("a").size is None
+    assert nodeA.validate("a").size == -1
 
     assert not nodeA.validate("b").valid
-    assert nodeA.validate("b").size is None
+    assert nodeA.validate("b").size == -1
 
     assert not nodeA.validate("ae").valid
-    assert nodeA.validate("ae").size is None
+    assert nodeA.validate("ae").size == -1
 
     assert nodeA.validate("abc").valid
     assert nodeA.validate("abc").size == 2

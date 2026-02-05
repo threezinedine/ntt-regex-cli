@@ -19,10 +19,10 @@ def test_machine_with_value():
     assert machine.validate("a").size == 1
 
     assert machine.validate("").valid is False
-    assert machine.validate("").size is None
+    assert machine.validate("").size == -1
 
     assert machine.validate("b").valid is False
-    assert machine.validate("b").size is None
+    assert machine.validate("b").size == -1
 
 
 def test_and_machine():
@@ -34,10 +34,10 @@ def test_and_machine():
     assert machine.validate("ab").size == 2
 
     assert machine.validate("a").valid is False
-    assert machine.validate("a").size is None
+    assert machine.validate("a").size == -1
 
     assert machine.validate("b").valid is False
-    assert machine.validate("b").size is None
+    assert machine.validate("b").size == -1
 
     assert machine.validate("abc").valid is True
     assert machine.validate("abc").size == 2
@@ -59,4 +59,27 @@ def test_or_machine():
     assert machine.validate("ab").size == 1
 
     assert machine.validate("c").valid is False
-    assert machine.validate("c").size is None
+    assert machine.validate("c").size == -1
+
+
+def test_repeated_machine():
+    machine = Machine("a")
+
+    machine = machine.repeat()
+
+    print(machine)
+
+    assert machine.validate("a").valid is True
+    assert machine.validate("a").size == 1
+
+    assert machine.validate("aaaa").valid is True
+    assert machine.validate("aaaa").size == 4
+
+    assert machine.validate("b").valid is True
+    assert machine.validate("b").size == 0
+
+    assert machine.validate("aaab").valid is True
+    assert machine.validate("aaab").size == 3
+
+    assert machine.validate("").valid is True
+    assert machine.validate("").size == 0

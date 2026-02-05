@@ -37,5 +37,16 @@ class Machine:
 
         return newMachine
 
+    def repeat(self) -> "Machine":
+        new_machine = Machine("")
+
+        self._endNode._accepted = False  # type: ignore
+
+        new_machine._startNode.add_transition("", self._startNode)
+        self._endNode.add_transition("", self._startNode)
+        self._endNode.add_transition("", new_machine._endNode)
+
+        return new_machine
+
     def __repr__(self) -> str:
         return f"Machine(startNode={self._startNode}, endNode={self._endNode})"

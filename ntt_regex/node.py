@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 @dataclass
 class ValidationResult:
     valid: bool = field(default=False)
-    size: int | None = field(default=None)
+    size: int = field(default=-1)
 
 
 class Node:
@@ -17,26 +17,31 @@ class Node:
         return self._accepted
 
     def validate(self, value: str, currentIndex: int = 0) -> ValidationResult:
+        finalResult = ValidationResult()
+
         epsilon_targets = self._transitions.get("", [])
         for target in epsilon_targets:
             result = target.validate(value, currentIndex)
-            if result.valid:
-                return ValidationResult(True, result.size)
+            if result.valid and finalResult.size < result.size:
+                finalResult = result
 
         if self.accepted:
             return ValidationResult(True, currentIndex)
 
         if currentIndex >= len(value):
-            return ValidationResult()
+            if finalResult.valid:
+                return finalResult
+            else:
+                return ValidationResult()
 
         targets = self._transitions.get(value[currentIndex], [])
 
         for target in targets:
             result = target.validate(value, currentIndex + 1)
-            if result.valid:
-                return result
+            if result.valid and finalResult.size < result.size:
+                finalResult = result
 
-        return ValidationResult()
+        return finalResult
 
     def add_transition(self, symbol: str, node: "Node") -> None:
         if symbol not in self._transitions:
