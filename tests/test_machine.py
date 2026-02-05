@@ -23,3 +23,21 @@ def test_machine_with_value():
 
     assert machine.validate("b").valid is False
     assert machine.validate("b").size is None
+
+
+def test_and_machine():
+    machine1 = Machine("a")
+    machine2 = Machine("b")
+
+    machine = machine1 & machine2
+    assert machine.validate("ab").valid is True
+    assert machine.validate("ab").size == 2
+
+    assert machine.validate("a").valid is False
+    assert machine.validate("a").size is None
+
+    assert machine.validate("b").valid is False
+    assert machine.validate("b").size is None
+
+    assert machine.validate("abc").valid is True
+    assert machine.validate("abc").size == 2
