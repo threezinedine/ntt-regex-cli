@@ -16,29 +16,25 @@ class Node:
     def accepted(self) -> bool:
         return self._accepted
 
-    def validate(self, value: str) -> ValidationResult:
+    def validate(self, value: str, currentIndex: int = 0) -> ValidationResult:
         epsilon_targets = self._transitions.get("", [])
         for target in epsilon_targets:
-            result = target.validate(value)
+            result = target.validate(value, currentIndex)
             if result.valid:
                 return ValidationResult(True, result.size)
 
         if self.accepted:
-            return ValidationResult(True, 0)
-        # if len(value) == 0:
-        #     return ValidationResult(self.accepted, 0 if self.accepted else None)
+            return ValidationResult(True, currentIndex)
 
-        if len(value) == 0:
+        if currentIndex >= len(value):
             return ValidationResult()
 
-        targets = self._transitions.get(value[0], [])
+        targets = self._transitions.get(value[currentIndex], [])
 
         for target in targets:
-            result = target.validate(value[1:])
+            result = target.validate(value, currentIndex + 1)
             if result.valid:
-                return ValidationResult(
-                    True, result.size + 1 if result.size is not None else 1
-                )
+                return result
 
         return ValidationResult()
 
@@ -47,3 +43,6 @@ class Node:
             self._transitions[symbol] = []
 
         self._transitions[symbol].append(node)
+
+    def __repr__(self) -> str:
+        return f"Node(accepted={self._accepted}) --> Transitions: {self._transitions}"

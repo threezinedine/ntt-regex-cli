@@ -85,4 +85,4 @@ def test_add_transition_multiple_steps():
     assert nodeA.validate("ae").size is None
 
     assert nodeA.validate("abc").valid
-    assert nodeA.validate("ab").size == 2
+    assert nodeA.validate("abc").size == 2

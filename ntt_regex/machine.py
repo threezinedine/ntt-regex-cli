@@ -2,10 +2,12 @@ from .node import Node, ValidationResult
 
 
 class Machine:
-    def __init__(self, value: str = "") -> None:
+    def __init__(self, value: str | None = "") -> None:
         self._startNode: Node = Node()
         self._endNode: Node = Node(accepted=True)
-        self._startNode.add_transition(value, self._endNode)
+
+        if value is not None:
+            self._startNode.add_transition(value, self._endNode)
 
     def validate(self, string: str) -> ValidationResult:
         return self._startNode.validate(string)
@@ -20,3 +22,20 @@ class Machine:
         self._endNode._accepted = False  # type: ignore
 
         return new_machine
+
+    def __or__(self, other: "Machine") -> "Machine":
+        newMachine = Machine(None)
+
+        newMachine._startNode.add_transition("", self._startNode)
+        newMachine._startNode.add_transition("", other._startNode)
+
+        self._endNode._accepted = False  # type: ignore
+        other._endNode._accepted = False  # type: ignore
+
+        self._endNode.add_transition("", newMachine._endNode)
+        other._endNode.add_transition("", newMachine._endNode)
+
+        return newMachine
+
+    def __repr__(self) -> str:
+        return f"Machine(startNode={self._startNode}, endNode={self._endNode})"

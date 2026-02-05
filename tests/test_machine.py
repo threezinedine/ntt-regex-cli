@@ -41,3 +41,22 @@ def test_and_machine():
 
     assert machine.validate("abc").valid is True
     assert machine.validate("abc").size == 2
+
+
+def test_or_machine():
+    machine1 = Machine("a")
+    machine2 = Machine("b")
+
+    machine = machine1 | machine2
+
+    assert machine.validate("a").valid is True
+    assert machine.validate("a").size == 1
+
+    assert machine.validate("b").valid is True
+    assert machine.validate("b").size == 1
+
+    assert machine.validate("ab").valid is True
+    assert machine.validate("ab").size == 1
+
+    assert machine.validate("c").valid is False
+    assert machine.validate("c").size is None
