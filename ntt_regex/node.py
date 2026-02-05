@@ -1,3 +1,12 @@
+from dataclasses import dataclass, field
+
+
+@dataclass
+class ValidationResult:
+    valid: bool = field(default=False)
+    size: int | None = field(default=None)
+
+
 class Node:
     def __init__(self, accepted: bool = False) -> None:
         self._accepted = accepted
@@ -7,17 +16,31 @@ class Node:
     def accepted(self) -> bool:
         return self._accepted
 
-    def validate(self, string: str) -> bool:
-        if len(string) == 0:
-            return self.accepted
+    def validate(self, value: str) -> ValidationResult:
+        epsilon_targets = self._transitions.get("", [])
+        for target in epsilon_targets:
+            result = target.validate(value)
+            if result.valid:
+                return ValidationResult(True, result.size)
 
-        targets = self._transitions.get(string[0], [])
+        if self.accepted:
+            return ValidationResult(True, 0)
+        # if len(value) == 0:
+        #     return ValidationResult(self.accepted, 0 if self.accepted else None)
+
+        if len(value) == 0:
+            return ValidationResult()
+
+        targets = self._transitions.get(value[0], [])
 
         for target in targets:
-            if target.validate(string[1:]):
-                return True
+            result = target.validate(value[1:])
+            if result.valid:
+                return ValidationResult(
+                    True, result.size + 1 if result.size is not None else 1
+                )
 
-        return False
+        return ValidationResult()
 
     def add_transition(self, symbol: str, node: "Node") -> None:
         if symbol not in self._transitions:

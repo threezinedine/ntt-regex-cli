@@ -13,12 +13,12 @@ def test_node_acceptance():
 
 def test_node_test_string():
     node = Node()
-    assert not node.validate("")
+    assert not node.validate("").valid
 
 
 def test_accepted_property_validate():
     node = Node(accepted=True)
-    assert node.validate("")
+    assert node.validate("").valid
 
 
 def test_add_transition():
@@ -29,7 +29,26 @@ def test_add_transition():
     node2 = Node(accepted=True)
     node1.add_transition("a", node2)
 
-    assert node1.validate("a")
+    assert node1.validate("a").valid
+    assert node1.validate("a").size == 1
+
+    assert node1.validate("b").valid is False
+    assert node1.validate("b").size is None
+
+
+def test_epsilon_transition():
+    """
+    (A) --""--> (B, accepted)
+    """
+    node1 = Node()
+    node2 = Node(accepted=True)
+    node1.add_transition("", node2)
+
+    assert node1.validate("").valid
+    assert node1.validate("").size == 0
+
+    assert node1.validate("a").valid
+    assert node1.validate("a").size == 0
 
 
 def test_add_transition_multiple_steps():
@@ -50,9 +69,20 @@ def test_add_transition_multiple_steps():
     nodeA.add_transition("a", nodeD)
     nodeD.add_transition("s", nodeE)
 
-    assert nodeA.validate("ab")
-    assert nodeA.validate("as")
-    assert not nodeA.validate("a")
-    assert not nodeA.validate("b")
-    assert not nodeA.validate("ae")
-    assert not nodeA.validate("abc")
+    assert nodeA.validate("ab").valid
+    assert nodeA.validate("ab").size == 2
+
+    assert nodeA.validate("as").valid
+    assert nodeA.validate("as").size == 2
+
+    assert not nodeA.validate("a").valid
+    assert nodeA.validate("a").size is None
+
+    assert not nodeA.validate("b").valid
+    assert nodeA.validate("b").size is None
+
+    assert not nodeA.validate("ae").valid
+    assert nodeA.validate("ae").size is None
+
+    assert nodeA.validate("abc").valid
+    assert nodeA.validate("ab").size == 2
