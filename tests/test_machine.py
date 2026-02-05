@@ -26,6 +26,7 @@ def test_machine_with_value():
 
 
 def test_and_machine():
+    # ab
     machine1 = Machine("a")
     machine2 = Machine("b")
 
@@ -44,6 +45,7 @@ def test_and_machine():
 
 
 def test_or_machine():
+    # a|b
     machine1 = Machine("a")
     machine2 = Machine("b")
 
@@ -63,6 +65,7 @@ def test_or_machine():
 
 
 def test_repeated_machine():
+    # a*
     machine = Machine("a")
 
     machine = machine.repeat()
@@ -83,3 +86,27 @@ def test_repeated_machine():
 
     assert machine.validate("").valid is True
     assert machine.validate("").size == 0
+
+
+def test_complex_machine():
+    # (a|b)*c
+    machine_a = Machine("a")
+    machine_b = Machine("b")
+    machine_c = Machine("c")
+
+    machine = (machine_a | machine_b).repeat() & machine_c
+
+    assert machine.validate("aaabbbabc").valid is True
+    assert machine.validate("aaabbbabc").size == 9
+
+    assert machine.validate("abababac").valid is True
+    assert machine.validate("abababac").size == 8
+
+    assert machine.validate("c").valid is True
+    assert machine.validate("c").size == 1
+
+    assert machine.validate("aaabbbab").valid is False
+    assert machine.validate("aaabbbab").size == -1
+
+    assert machine.validate("").valid is False
+    assert machine.validate("").size == -1
