@@ -120,3 +120,22 @@ def test_parse_optional():
 
     assert parser.validate("b").valid is False
     assert parser.validate("b").size == -1
+
+
+def test_parse_complex_optional_and_one_or_more():
+    parser = Parser("a+b|c?d")
+
+    assert parser.validate("aaab").valid is True
+    assert parser.validate("aaab").size == 4
+
+    assert parser.validate("b").valid is False
+    assert parser.validate("b").size == -1
+
+    assert parser.validate("c").valid is False
+    assert parser.validate("c").size == -1
+
+    assert parser.validate("d").valid is True
+    assert parser.validate("d").size == 1
+
+    assert parser.validate("cd").valid is True
+    assert parser.validate("cd").size == 2

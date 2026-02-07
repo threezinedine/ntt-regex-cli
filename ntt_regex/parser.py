@@ -52,9 +52,15 @@ class Parser:
 
     Grammar:
 
-    E  -> TE'
-          | T '|' E'
+    H  -> EH';
+
+    H' -> ε
+          | '|' E
           ;
+
+    E  -> TE'
+          ;
+
     E' -> T
           | ε
           ;
@@ -80,7 +86,7 @@ class Parser:
         self._tokens: list[Token] = []
         self._tokenize(pattern)
 
-        ast = self.E()
+        ast = self.H()
         print(ast)
         if ast is None:
             raise ValueError("Invalid pattern")
@@ -126,6 +132,42 @@ class Parser:
             return sub_machine | Machine()
 
         return None
+
+    def H(self) -> list[Any] | None:
+        save = self._savepoint()
+
+        e = self.E()
+        if e is None:
+            self._rollback(save)
+            return None
+
+        h_prime = self.H_prime()
+        if h_prime is not None:
+            return [h_prime[0], e, h_prime[1]]
+
+        self._rollback(save)
+        return e
+
+    def H_prime(self) -> list[Any] | None:
+        save = self._savepoint()
+
+        if self._machinePointer >= len(self._tokens):
+            self._rollback(save)
+            return None
+
+        token = self._tokens[self._machinePointer]
+        if token.type != TokenType.OR:
+            self._rollback(save)
+            return None
+
+        self._machinePointer += 1
+
+        e = self.E()
+        if e is None:
+            self._rollback(save)
+            return None
+
+        return [GroupType.OR, e]
 
     def E(self) -> list[Any] | None:
         save = self._savepoint()
