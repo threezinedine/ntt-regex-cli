@@ -53,9 +53,16 @@ class Parser:
     E  -> TE'
           | T '|' E'
           ;
-    E' -> T | ε
+    E' -> T
+          | ε
+          ;
 
-    T  -> CHART
+    T  -> K
+          | K '*'
+          ;
+
+    K  -> CHAR
+          ;
     """
 
     def __init__(self, pattern: str) -> None:
@@ -66,6 +73,7 @@ class Parser:
         self._tokenize(pattern)
 
         ast = self.E()
+        print(ast)
         if ast is None:
             raise ValueError("Invalid pattern")
 
@@ -74,6 +82,9 @@ class Parser:
         assert self._machine is not None
 
     def build_machine(self, ast: list[Any]) -> Machine | None:
+        if len(ast) == 0:
+            return Machine()
+
         if ast[0] == GroupType.AND:
             assert len(ast) == 3
             left_machine = self.build_machine(ast[1])
@@ -90,6 +101,11 @@ class Parser:
             return left_machine | right_machine
         elif isinstance(ast[0], str):
             return Machine(ast[0])
+        elif ast[0] == GroupType.REPEAT:
+            assert len(ast) == 2
+            sub_machine = self.build_machine(ast[1])
+            assert sub_machine is not None
+            return sub_machine.repeat()
 
         return None
 
@@ -150,6 +166,17 @@ class Parser:
 
         return [GroupType.OR, t, e_prime]
 
+    def repeat(self) -> list[Any] | None:
+        if self._machinePointer >= len(self._tokens):
+            return None
+
+        token = self._tokens[self._machinePointer]
+        if token.type != TokenType.REPEAT:
+            return None
+
+        self._machinePointer += 1
+        return [GroupType.REPEAT]
+
     def _savepoint(self) -> int:
         self._machineSavepoints.append(self._machinePointer)
         return len(self._machineSavepoints) - 1
@@ -161,6 +188,27 @@ class Parser:
         self._machinePointer = self._machineSavepoints[index]
 
     def T(self) -> list[Any] | None:
+        save = self._savepoint()
+
+        k = self.K()
+        if k is None:
+            self._rollback(save)
+            return None
+
+        repeat = self.repeat()
+        if repeat is not None:
+            return [GroupType.REPEAT, k]
+
+        self._rollback(save)
+
+        k = self.K()
+        if k is not None:
+            return k
+
+        self._rollback(save)
+        return None
+
+    def K(self) -> list[Any] | None:
         if self._machinePointer >= len(self._tokens):
             return None
 
@@ -177,12 +225,21 @@ class Parser:
         if self._machinePointer >= len(self._tokens):
             return []
 
-        t = self.T()
-        if t is None:
-            self._rollback(save)
-            return None
+        self._rollback(save)
 
-        return t
+        t = self.T()
+        if t is not None:
+            return t
+
+        self._rollback(save)
+
+        repeat = self.repeat()
+        if repeat is not None:
+            return repeat
+
+        self._rollback(save)
+
+        return None
 
     def _add_char(self, char: str) -> None:
         if self._machine is None:

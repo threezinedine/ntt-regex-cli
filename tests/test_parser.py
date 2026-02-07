@@ -24,21 +24,20 @@ def test_parser_init():
     assert parser.validate("b").size == 1
 
 
-# def test_parse_repeat():
-#     pattern = "a*"
-#     parser = Parser.parse(pattern)
+def test_parse_repeat():
+    parser = Parser("a*")
 
-#     assert parser.validate("").valid is True
-#     assert parser.validate("").size == 0
+    assert parser.validate("").valid is True
+    assert parser.validate("").size == 0
 
-#     assert parser.validate("a").valid is True
-#     assert parser.validate("a").size == 1
+    assert parser.validate("a").valid is True
+    assert parser.validate("a").size == 1
 
-#     assert parser.validate("aaaa").valid is True
-#     assert parser.validate("aaaa").size == 4
+    assert parser.validate("aaaa").valid is True
+    assert parser.validate("aaaa").size == 4
 
-#     assert parser.validate("b").valid is True
-#     assert parser.validate("b").size == 0
+    assert parser.validate("b").valid is True
+    assert parser.validate("b").size == 0
 
 
 # def test_parse_complex():
