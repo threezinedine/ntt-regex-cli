@@ -73,3 +73,50 @@ def test_parse_concatenated_repeat():
 
     assert parser.validate("b").valid is False
     assert parser.validate("b").size == -1
+
+
+def test_parse_one_or_more_repeats():
+    parser = Parser("ab+")
+
+    assert parser.validate("a").valid is False
+    assert parser.validate("a").size == -1
+
+    assert parser.validate("ab").valid is True
+    assert parser.validate("ab").size == 2
+
+    assert parser.validate("abb").valid is True
+    assert parser.validate("abb").size == 3
+
+    assert parser.validate("b").valid is False
+    assert parser.validate("b").size == -1
+
+    assert parser.validate("").valid is False
+    assert parser.validate("").size == -1
+
+    assert parser.validate("aab").valid is False
+    assert parser.validate("aab").size == -1
+
+    assert parser.validate("abab").valid is True
+    assert parser.validate("abab").size == 2
+
+    assert parser.validate("abbb").valid is True
+    assert parser.validate("abbb").size == 4
+
+    assert parser.validate("abbc").valid is True
+    assert parser.validate("abbc").size == 3
+
+
+def test_parse_optional():
+    parser = Parser("ab?")
+
+    assert parser.validate("a").valid is True
+    assert parser.validate("a").size == 1
+
+    assert parser.validate("ab").valid is True
+    assert parser.validate("ab").size == 2
+
+    assert parser.validate("abb").valid is True
+    assert parser.validate("abb").size == 2
+
+    assert parser.validate("b").valid is False
+    assert parser.validate("b").size == -1

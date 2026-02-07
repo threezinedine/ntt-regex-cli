@@ -29,6 +29,8 @@ class GroupType(Enum):
     AND = auto()
     OR = auto()
     REPEAT = auto()
+    ONE_MORE = auto()
+    OPTIONAL = auto()
     RANGE = auto()
     BLOCK = auto()
 
@@ -58,7 +60,13 @@ class Parser:
           ;
 
     T  -> K
-          | K '*'
+          | KF
+          ;
+
+    F  -> | ε
+          | '*'
+          | '?'
+          | '+'
           ;
 
     K  -> CHAR
@@ -106,6 +114,16 @@ class Parser:
             sub_machine = self.build_machine(ast[1])
             assert sub_machine is not None
             return sub_machine.repeat()
+        elif ast[0] == GroupType.ONE_MORE:
+            assert len(ast) == 2
+            sub_machine = self.build_machine(ast[1])
+            assert sub_machine is not None
+            return sub_machine & sub_machine.repeat()
+        elif ast[0] == GroupType.OPTIONAL:
+            assert len(ast) == 2
+            sub_machine = self.build_machine(ast[1])
+            assert sub_machine is not None
+            return sub_machine | Machine()
 
         return None
 
@@ -166,16 +184,16 @@ class Parser:
 
         return [GroupType.OR, t, e_prime]
 
-    def repeat(self) -> list[Any] | None:
+    def check_token(self, token_type: TokenType) -> bool:
         if self._machinePointer >= len(self._tokens):
-            return None
+            return False
 
         token = self._tokens[self._machinePointer]
-        if token.type != TokenType.REPEAT:
-            return None
+        if token.type == token_type:
+            self._machinePointer += 1
+            return True
 
-        self._machinePointer += 1
-        return [GroupType.REPEAT]
+        return False
 
     def _savepoint(self) -> int:
         self._machineSavepoints.append(self._machinePointer)
@@ -195,9 +213,16 @@ class Parser:
             self._rollback(save)
             return None
 
-        repeat = self.repeat()
-        if repeat is not None:
-            return [GroupType.REPEAT, k]
+        f = self.F()
+        if f is not None:
+            if f == "*":
+                return [GroupType.REPEAT, k]
+            if f == "?":
+                return [GroupType.OPTIONAL, k]
+            if f == "+":
+                return [GroupType.ONE_MORE, k]
+
+            return k
 
         self._rollback(save)
 
@@ -205,7 +230,23 @@ class Parser:
         if k is not None:
             return k
 
-        self._rollback(save)
+        return None
+
+    def F(self) -> str | None:
+        if self._machinePointer >= len(self._tokens):
+            return ""
+
+        token = self._tokens[self._machinePointer]
+        if token.type == TokenType.REPEAT:
+            self._machinePointer += 1
+            return "*"
+        elif token.type == TokenType.QUESTION:
+            self._machinePointer += 1
+            return "?"
+        elif token.type == TokenType.PLUS:
+            self._machinePointer += 1
+            return "+"
+
         return None
 
     def K(self) -> list[Any] | None:
@@ -230,12 +271,6 @@ class Parser:
         t = self.T()
         if t is not None:
             return t
-
-        self._rollback(save)
-
-        repeat = self.repeat()
-        if repeat is not None:
-            return repeat
 
         self._rollback(save)
 
