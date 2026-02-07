@@ -2,8 +2,7 @@ from ntt_regex import Parser
 
 
 def test_and_machine():
-    pattern = "ab"
-    parser = Parser.parse(pattern)
+    parser = Parser("ab")
 
     assert parser.validate("ab").valid is True
     assert parser.validate("ab").size == 2
@@ -15,15 +14,14 @@ def test_and_machine():
     assert parser.validate("b").size == -1
 
 
-# def test_parser_init():
-#     pattern = "a|b"
-#     parser = Parser.parse(pattern)
+def test_parser_init():
+    parser = Parser("a|b")
 
-#     assert parser.validate("a").valid is True
-#     assert parser.validate("a").size == 1
+    assert parser.validate("a").valid is True
+    assert parser.validate("a").size == 1
 
-#     assert parser.validate("b").valid is True
-#     assert parser.validate("b").size == 1
+    assert parser.validate("b").valid is True
+    assert parser.validate("b").size == 1
 
 
 # def test_parse_repeat():

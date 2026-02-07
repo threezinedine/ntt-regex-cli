@@ -1,10 +1,7 @@
-from .machine import Machine
+from .machine import Machine, ValidationResult
 from dataclasses import dataclass, field
-from typing import Callable as Function, List
+from typing import Any, List
 from enum import Enum, auto
-
-# import partial_functions
-from functools import partial
 
 
 class TokenType(Enum):
@@ -43,11 +40,6 @@ class TokenGroup:
 
 
 class Parser:
-    _machine: Machine | None = None
-    _machineStack: list[Function[[int], None]] = []
-    _machinePointer: int = 0
-    _machineSavepoints: List[int] = []
-
     """
     Precedence (highest to lowest):
     1. range []
@@ -59,129 +51,174 @@ class Parser:
     Grammar:
 
     E  -> TE'
+          | T '|' E'
+          ;
     E' -> T | ε
 
-    T  -> CHAR
+    T  -> CHART
     """
 
-    @staticmethod
-    def parse(pattern: str) -> Machine:
-        tokens = Parser._tokenize(pattern)
-        Parser._machine = None
-        Parser._machineStack = []
-        Parser._machinePointer = 0
-        Parser._machineSavepoints = []
-        valid = Parser._parse(tokens)
-        if not valid:
+    def __init__(self, pattern: str) -> None:
+        self._machine: Machine | None = None
+        self._machinePointer: int = 0
+        self._machineSavepoints: List[int] = []
+        self._tokens: list[Token] = []
+        self._tokenize(pattern)
+
+        ast = self.E()
+        if ast is None:
             raise ValueError("Invalid pattern")
 
-        for func in Parser._machineStack:
-            func()  # type: ignore
+        self._machine = self.build_machine(ast)
 
-        assert Parser._machine is not None
-        return Parser._machine
+        assert self._machine is not None
 
-    @staticmethod
-    def _parse(tokens: list[Token]) -> bool:
-        save = Parser._savepoint()
-        t_res = Parser._parse_T(tokens)
-        if not t_res:
-            Parser._rollback(save)
-            return False
+    def build_machine(self, ast: list[Any]) -> Machine | None:
+        if ast[0] == GroupType.AND:
+            assert len(ast) == 3
+            left_machine = self.build_machine(ast[1])
+            right_machine = self.build_machine(ast[2])
+            assert left_machine is not None
+            assert right_machine is not None
+            return left_machine & right_machine
+        elif ast[0] == GroupType.OR:
+            assert len(ast) == 3
+            left_machine = self.build_machine(ast[1])
+            right_machine = self.build_machine(ast[2])
+            assert left_machine is not None
+            assert right_machine is not None
+            return left_machine | right_machine
+        elif isinstance(ast[0], str):
+            return Machine(ast[0])
 
-        e_prim_res = Parser._parse_E_prime(tokens)
-        if not e_prim_res:
-            Parser._rollback(save)
-            return False
+        return None
 
-        return True
+    def E(self) -> list[Any] | None:
+        save = self._savepoint()
 
-    @staticmethod
-    def _savepoint() -> int:
-        Parser._machineSavepoints.append(Parser._machinePointer)
-        return len(Parser._machineSavepoints) - 1
+        te_prime = self.TE_prime()
+        if te_prime is not None:
+            return te_prime
 
-    @staticmethod
-    def _rollback(index: int = -1) -> None:
+        self._rollback(save)
+
+        t_or_e_prime = self.T_or_E_prime()
+        if t_or_e_prime is not None:
+            return t_or_e_prime
+
+        self._rollback(save)
+        return None
+
+    def TE_prime(self) -> list[Any] | None:
+        save = self._savepoint()
+
+        t = self.T()
+        if t is None:
+            self._rollback(save)
+            return None
+
+        e_prime = self.E_prime()
+        if e_prime is None:
+            self._rollback(save)
+            return None
+
+        return [GroupType.AND, t, e_prime]
+
+    def T_or_E_prime(self) -> list[Any] | None:
+        save = self._savepoint()
+
+        if self._machinePointer + 2 > len(self._tokens):
+            self._rollback(save)
+            return None
+
+        t = self.T()
+        if t is None:
+            self._rollback(save)
+            return None
+
+        token = self._tokens[self._machinePointer]
+        if token.type != TokenType.OR:
+            self._rollback(save)
+            return None
+
+        self._machinePointer += 1
+
+        e_prime = self.E_prime()
+        if e_prime is None:
+            self._rollback(save)
+            return None
+
+        return [GroupType.OR, t, e_prime]
+
+    def _savepoint(self) -> int:
+        self._machineSavepoints.append(self._machinePointer)
+        return len(self._machineSavepoints) - 1
+
+    def _rollback(self, index: int = -1) -> None:
         if index == -1:
-            index = len(Parser._machineSavepoints) - 1
+            index = len(self._machineSavepoints) - 1
 
-        Parser._machinePointer = Parser._machineSavepoints[index]
-        Parser._machineStack = Parser._machineStack[: Parser._machinePointer]
+        self._machinePointer = self._machineSavepoints[index]
 
-    @staticmethod
-    def _parse_T(tokens: list[Token]) -> bool:
-        if Parser._machinePointer >= len(tokens):
-            return False
+    def T(self) -> list[Any] | None:
+        if self._machinePointer >= len(self._tokens):
+            return None
 
-        token = tokens[Parser._machinePointer]
+        token = self._tokens[self._machinePointer]
         if token.type == TokenType.CHAR:
-            Parser._machineStack.append(partial(Parser._add_char, token.value))  # type: ignore
-            Parser._machinePointer += 1
-            return True
+            self._machinePointer += 1
+            return [token.value]
 
-        return False
+        return None
 
-    @staticmethod
-    def _parse_E_prime(tokens: list[Token]) -> bool:
-        save = Parser._savepoint()
+    def E_prime(self) -> list[Any] | None:
+        save = self._savepoint()
 
-        if Parser._machinePointer >= len(tokens):
-            return True
+        if self._machinePointer >= len(self._tokens):
+            return []
 
-        t_res = Parser._parse_T(tokens)
-        if not t_res:
-            Parser._rollback(save)
-            return False
+        t = self.T()
+        if t is None:
+            self._rollback(save)
+            return None
 
-        return True
+        return t
 
-    @staticmethod
-    def _add_char(char: str) -> None:
-        if Parser._machine is None:
-            Parser._machine = Machine(char)
+    def _add_char(self, char: str) -> None:
+        if self._machine is None:
+            self._machine = Machine(char)
         else:
-            Parser._machine = Parser._machine & Machine(char)
+            self._machine = self._machine & Machine(char)
 
-    @staticmethod
-    def _tokenize(pattern: str) -> list[Token]:
-        result: list[Token] = []
+    def _tokenize(self, pattern: str):
+        self._tokens = []
 
         for char in pattern:
             if char == "|":
-                result.append(Token(TokenType.OR))
+                self._tokens.append(Token(TokenType.OR))
             elif char == "^":
-                result.append(Token(TokenType.START))
+                self._tokens.append(Token(TokenType.START))
             elif char == "$":
-                result.append(Token(TokenType.END))
+                self._tokens.append(Token(TokenType.END))
             elif char == "*":
-                result.append(Token(TokenType.REPEAT))
+                self._tokens.append(Token(TokenType.REPEAT))
             elif char == "?":
-                result.append(Token(TokenType.QUESTION))
+                self._tokens.append(Token(TokenType.QUESTION))
             elif char == "+":
-                result.append(Token(TokenType.PLUS))
+                self._tokens.append(Token(TokenType.PLUS))
             elif char == "[":
-                result.append(Token(TokenType.L_RANGE))
+                self._tokens.append(Token(TokenType.L_RANGE))
             elif char == "]":
-                result.append(Token(TokenType.R_RANGE))
+                self._tokens.append(Token(TokenType.R_RANGE))
             elif char == "(":
-                result.append(Token(TokenType.L_PAREN))
+                self._tokens.append(Token(TokenType.L_PAREN))
             elif char == ")":
-                result.append(Token(TokenType.R_PAREN))
+                self._tokens.append(Token(TokenType.R_PAREN))
             else:
-                result.append(Token(TokenType.CHAR, char))
+                self._tokens.append(Token(TokenType.CHAR, char))
 
-        return result
+    def validate(self, string: str) -> ValidationResult:
+        if self._machine is None:
+            raise ValueError("Parser has not been initialized properly.")
 
-    @staticmethod
-    def _parse_or(tokens: list[Token]) -> Machine:
-        left_token = tokens[0]
-        right_token = tokens[2]
-
-        if left_token.type == TokenType.CHAR and right_token.type == TokenType.CHAR:
-            left_machine = Machine(left_token.value)
-            right_machine = Machine(right_token.value)
-
-            return left_machine | right_machine
-
-        raise NotImplementedError("Only simple 'a|b' patterns are implemented.")
+        return self._machine.validate(string)
